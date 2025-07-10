@@ -1,0 +1,56 @@
+{
+  "Explainability and Reasoning": {
+    "PAKTON": 37,
+    "GPT": 22,
+    "Neither": 1,
+    "I am not sure": 0
+  },
+  "Justification with Evidence": {
+    "PAKTON": 45,
+    "GPT": 11,
+    "Neither": 2,
+    "I am not sure": 2
+  },
+  "Contextual and Legal Understanding": {
+    "PAKTON": 42,
+    "GPT": 12,
+    "Neither": 2,
+    "I am not sure": 4
+  },
+  "Handling Ambiguity": {
+    "PAKTON": 31,
+    "GPT": 11,
+    "Neither": 13,
+    "I am not sure": 5
+  },
+  "Acknowledgment of Knowledge Gaps": {
+    "PAKTON": 34,
+    "GPT": 9,
+    "Neither": 11,
+    "I am not sure": 6
+  },
+  "Conciseness and Precision": {
+    "PAKTON": 20,
+    "GPT": 32,
+    "Neither": 2,
+    "I am not sure": 6
+  },
+  "Coherence and Organization": {
+    "PAKTON": 30,
+    "GPT": 21,
+    "Neither": 3,
+    "I am not sure": 6
+  },
+  "Relevance and Focus": {
+    "PAKTON": 22,
+    "GPT": 23,
+    "Neither": 3,
+    "I am not sure": 12
+  },
+  "Completeness": {
+    "PAKTON": 47,
+    "GPT": 8,
+    "Neither": 1,
+    "I am not sure": 4
+  }
+}

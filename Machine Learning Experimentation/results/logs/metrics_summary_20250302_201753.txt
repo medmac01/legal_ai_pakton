@@ -1,0 +1,33 @@
+META-LEARNING METRICS SUMMARY
+============================
+
+Date/Time: 20250302_201753
+
+Train size: 1672, Test size: 419
+
+OVERALL BEST MODEL METRICS
+Model: RandomForestClassifier
+Cross-Validation Metrics:
+  Accuracy: 0.7751
+  F1 Weighted: 0.7728
+Test Set Metrics:
+  Accuracy: 0.7375
+  F1 Weighted: 0.7351
+Per-class F1 scores (Test):
+  Class 0: 0.5789
+  Class 1: 0.7857
+  Class 2: 0.7189
+  Class macro avg: 0.6945
+  Class weighted avg: 0.7351
+
+ALL MODELS COMPARISON
+Model          | CV Accuracy | CV F1   | Test Accuracy | Test F1
+---------------|-------------|---------|--------------|--------
+LogisticRegression| 0.7225     | 0.7200 | 0.6969       | 0.6960
+DecisionTreeClassifier| 0.7512     | 0.7486 | 0.6945       | 0.6930
+RandomForestClassifier| 0.7751     | 0.7728 | 0.7375       | 0.7351
+GradientBoostingClassifier| 0.7697     | 0.7683 | 0.7208       | 0.7192
+SVC            | 0.7578     | 0.7531 | 0.7255       | 0.7225
+MLPClassifier  | 0.7255     | 0.7223 | 0.6874       | 0.6842
+GaussianNB     | 0.6848     | 0.6947 | 0.6635       | 0.6710
+KNeighborsClassifier| 0.7542     | 0.7519 | 0.7232       | 0.7206

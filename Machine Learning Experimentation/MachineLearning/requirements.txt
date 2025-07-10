@@ -1,0 +1,10 @@
+pandas
+tabulate
+datasets
+matplotlib
+seaborn
+scikit-learn
+imblearn
+xgboost
+lightgbm
+# catboost

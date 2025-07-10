@@ -1,0 +1,38 @@
+{
+  "Justification with Evidence": {
+    "PAKTON": 0.6887,
+    "GPT": 0.6503
+  },
+  "Contextual and Legal Understanding": {
+    "PAKTON": 0.8054,
+    "GPT": 0.8472
+  },
+  "Handling Ambiguity": {
+    "PAKTON": 0.6925,
+    "GPT": 0.4248
+  },
+  "Acknowledgment of Knowledge Gaps": {
+    "PAKTON": 0.9124,
+    "GPT": 0.6905
+  },
+  "Conciseness and Precision": {
+    "PAKTON": 0.8691,
+    "GPT": 0.8323
+  },
+  "Coherence and Organization": {
+    "PAKTON": 0.9024,
+    "GPT": 0.5118
+  },
+  "Relevance and Focus": {
+    "PAKTON": 0.9155,
+    "GPT": 0.903
+  },
+  "Completeness": {
+    "PAKTON": 0.8216,
+    "GPT": 0.6866
+  },
+  "Explainability and Reasoning": {
+    "PAKTON": 0.835,
+    "GPT": 0.8127
+  }
+}

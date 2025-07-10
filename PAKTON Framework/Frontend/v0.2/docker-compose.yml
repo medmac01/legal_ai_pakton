@@ -1,0 +1,40 @@
+version: '3.9'
+
+services:
+  # Agent server (LangGraph) service
+  agent-server:
+    build:
+      context: .
+      dockerfile: ./docker/agent-server.Dockerfile
+    container_name: open-canvas-agent-server
+    ports:
+      - "54367:54367"
+    env_file:
+      - ./.env
+      - ./apps/agents/.env
+    volumes:
+      - ./:/app
+    networks:
+      - open-canvas-network
+
+  # Web frontend service
+  web-app:
+    build:
+      context: .
+      dockerfile: ./docker/web-app.Dockerfile
+    container_name: open-canvas-web-app
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./.env
+      - ./apps/web/.env
+    volumes:
+      - ./:/app
+    depends_on:
+      - agent-server
+    networks:
+      - open-canvas-network
+
+networks:
+  open-canvas-network:
+    driver: bridge

@@ -1,0 +1,41 @@
+notebook
+ipykernel
+boto3
+# torch==2.1.2
+torch
+tqdm
+datasets
+python-dotenv
+scikit-learn
+# openai==0.28
+tenacity
+numpy==1.26.4
+sentence-transformers
+bitsandbytes
+peft
+trl
+accelerate
+# transformers==4.48.1
+transformers
+protobuf
+sentencepiece
+
+# for rag experiments
+# pinecone
+langchain
+langchain-community
+langchain_core
+langchain_openai
+# langchain_pinecone
+langchain-chroma
+chromadb
+
+python-docx
+
+ibm_watsonx_ai
+langchain_ibm
+
+llama_index
+anthropic
+
+google-genai

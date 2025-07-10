@@ -1,0 +1,33 @@
+META-LEARNING METRICS SUMMARY
+============================
+
+Date/Time: 20250303_123445
+
+Train size: 528, Test size: 419
+
+OVERALL BEST MODEL METRICS
+Model: DecisionTreeClassifier
+Cross-Validation Metrics:
+  Accuracy: 0.8142
+  F1 Weighted: 0.8137
+Test Set Metrics:
+  Accuracy: 0.7661
+  F1 Weighted: 0.7728
+Per-class F1 scores (Test):
+  Class 0: 0.5606
+  Class 1: 0.8650
+  Class 2: 0.7255
+  Class macro avg: 0.7170
+  Class weighted avg: 0.7728
+
+ALL MODELS COMPARISON
+Model          | CV Accuracy | CV F1   | Test Accuracy | Test F1
+---------------|-------------|---------|--------------|--------
+LogisticRegression| 0.7499     | 0.7502 | 0.7064       | 0.7121
+DecisionTreeClassifier| 0.8142     | 0.8137 | 0.7661       | 0.7728
+RandomForestClassifier| 0.8143     | 0.8126 | 0.7566       | 0.7619
+GradientBoostingClassifier| 0.8066     | 0.8071 | 0.7637       | 0.7684
+SVC            | 0.7878     | 0.7852 | 0.7542       | 0.7624
+MLPClassifier  | 0.7651     | 0.7637 | 0.7112       | 0.7212
+GaussianNB     | 0.7840     | 0.7837 | 0.7088       | 0.7172
+KNeighborsClassifier| 0.7764     | 0.7707 | 0.7303       | 0.7350
