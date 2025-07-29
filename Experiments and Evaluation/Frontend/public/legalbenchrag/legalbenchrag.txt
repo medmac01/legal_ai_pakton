@@ -1,0 +1,348 @@
+[The original LegalBenchRAG codebase](https://github.com/zeroentropy-ai/legalbenchrag) was modified to accommodate the `PAKTON` evaluation.
+
+## Results
+
+Experimental results are organized in the `results` directory:
+
+- **flagReranker**: Results using a flag-based reranking approach (configuration 1)
+- **llmReranker**: Results using an LLM-based reranking approach (configuration 2)
+
+Each subdirectory contains:
+- JSON files with aggregated results for each benchmark
+
+The following are the relevant spans of the paper regarding the legalbenchrag experiments:
+
+\subsubsection{Performance of RAG}
+\paragraph{Setup.} In addition to ContractNLI, we leverage the LegalBench-RAG benchmark~\cite{pipitone2024legalbenchragbenchmarkretrievalaugmentedgeneration} to assess the retrieval pipeline—specifically, the Archivist and Researcher modules—independently of answer generation. This isolation is essential, as PAKTON’s overall performance hinges on the relevance of retrieved context. LegalBench-RAG covers four contract-related domains—NDAs, M\&A agreements, commercial contracts, and consumer-facing privacy policies—enabling a robust evaluation of retrieval accuracy across heterogeneous legal corpora.
+We benchmark PAKTON’s RAG module against four baselines used in \citet{pipitone2024legalbenchragbenchmarkretrievalaugmentedgeneration}, namely: Naive (fixed 500-character chunks with OpenAI embeddings\cite{openai2024embedding}), RCTS (structure-aware splitting\cite{langchain2024rts}), Naive+Cohere (chunking with Cohere reranking\footnote{rerank-english-v3.0}), and RCTS+Cohere (structural chunking with reranking). Full details are provided in App.~\ref{app:legalbenchragexperiments}.
+\paragraph{Results.} Table~\ref{tab:legalbench_rag} presents a comparative analysis of retrieval performance across diverse legal corpora, using precision and recall at various $k$ thresholds to benchmark \textsc{PAKTON} against established baselines. Across all datasets, \textsc{PAKTON} consistently and significantly outperforms alternatives at every evaluated $k$. For instance, on the ContractNLI dataset, \textsc{PAKTON} achieves a Recall@1 of 53.14\%, nearly 5 times higher than the strongest baseline (11.32\%), a trend that holds across all $k$ values. Similar improvements are observed in other datasets: on PrivacyQA, MAUD, and CUAD, \textsc{PAKTON} surpasses the best Recall@1 scores by margins often exceeding 20\%. Aggregate results reinforce this pattern, with \textsc{PAKTON} achieving more than five-fold increase in Recall@1 (26.77\% vs. 4.94\%). These improvements are especially critical in the legal domain, where high recall is essential. Failing to retrieve relevants spans can result in flawed reasoning or unsupported conclusions, particularly when legal documents contain conflicting clauses, exceptions, or interdependent provisions that must be interpreted in context.
+
+\subsection{PAKTON Evaluation Strategy}
+
+To assess the retrieval capabilities of the \textbf{PAKTON} system on LegalBenchRAG, we evaluated the indexing and in-document retrieval functionality, which constitute the core components of the pipeline. In this setup:
+
+\begin{itemize}
+    \item The \textbf{Archivist} component is responsible for document indexing.
+    \item The \textbf{Researcher} performs in-document retrieval.
+    \item Interactions through the \textbf{Interrogator} were bypassed to focus exclusively on retrieval performance.
+\end{itemize}
+
+Each document from the dataset was indexed by the Archivist, and the corresponding queries were directly submitted to the Researcher. The retrieved spans were evaluated using the LegalBenchRAG scoring methodology.
+
+\subsubsection*{Configuration 1}
+\label{subsubsection:configuration_1}
+\textbf{Archivist}:
+\begin{itemize}
+    \item Primary strategy: structural parsing.
+    \item Fallback: Recursive Character Text Splitter with 1000-character chunks and no overlap if structural parsing failed.
+    \item Embedding model:\\ \texttt{text-embedding-3-large}.
+\end{itemize}
+
+\textbf{Researcher}:
+\begin{itemize}
+    \item Query optimization using gpt-4o and only in-document search as tool enabled.
+    \item BM25 retrieves top-100 chunks with a similarity threshold of 0.6.
+    \item Dense embedding retriever returns top-100 chunks with no similarity filtering using embeddings model \texttt{text-embedding-3-large}
+    \item Reciprocal Rank Fusion with equal weights for both retrievers to rerank chunks, pick top-64 chunks.
+    \item Reranker: \texttt{BAAI/bge-reranker-v2-m3}, producing a top-64 reranked final list of chunks.
+    \item Strip structural information of the chunk and keep only the original span.
+\end{itemize}
+
+\textbf{LLM Filtering}:
+\begin{itemize}
+    \item An additional post-reranking filtering stage is applied using \texttt{command-R} (Cohere), an open-source 35B parameter model specifically fine-tuned for Retrieval-Augmented Generation (RAG) applications.
+    \item From the top-10 reranked chunks, the model identifies and extracts the most relevant sub-span(s) within each chunk, aiming to isolate highly precise evidence.
+    \item This step is designed to enhance overall precision by focusing retrieval results on the most contextually pertinent portions of the content.
+\end{itemize}
+
+Results for this configuration are provided in Table~\ref{tab:pakton_legal_bench_rag_results}. Two variants are compared: one with and one without the LLM filtering step.
+The results reported and compared in Table~\ref{tab:legalbench_rag} correspond to Configuration 1, specifically the variant without LLM filtering.
+
+\subsubsection*{Configuration 2}
+
+Same as Configuration 1 with the only change being the use of an alternative LLM-based reranker:
+\begin{itemize}
+    \item Reranker:\\ \texttt{AAI/bge-reranker-v2-minicpm-layerwise} (2.72B parameters) with a 28-layer cutoff.
+\end{itemize}
+
+Results for this configuration are provided in Table~\ref{tab:pakton_legal_bench_rag_results_conf_2}.
+
+\subsection{Discussion}
+
+\paragraph{Configuration 1 vs Configuration 2:}
+While Configuration~1 serves as the primary setup for PAKTON, our evaluation indicates that Configuration~2 yields superior performance in terms of retrieval accuracy. However, this improvement comes at a cost: the second reranker in Configuration~2 is a large language model with 2.72 billion parameters, which introduces a significant latency overhead compared to the more lightweight setup in Configuration~1.
+
+Considering the trade-off between reranking accuracy and computational efficiency, Configuration~1 represents the most suitable choice for practical deployment scenarios where speed is a critical factor. Nevertheless, for applications where performance is prioritized over inference time, Configuration~2 may be preferred to achieve more competitive results.
+
+\paragraph{No LLM Filtering vs.\ LLM Filtering:}  
+In the legal domain, \textbf{high recall} is often of paramount importance, as omitting relevant spans can lead to incomplete or flawed legal reasoning. The \textit{No LLM Filtering} configuration aligns better with this paradigm minimizing the risk of excluding potentially critical information. For this reason, it is selected as the primary setup in our evaluation.
+
+Nonetheless, there are scenarios where \textbf{precision} is more desirable—particularly when mitigating hallucination risks or when users require concise, targeted evidence rather than exhaustive retrieval. To accommodate such use cases, we evaluate an additional post-reranking stage employing the \textit{LLM Filtering} variant, which identifies and extracts the most relevant sub-spans within each of the top-10 reranked chunks, thereby filtering the retrieval output to focus on the most contextually pertinent segments.
+
+As shown in Tables~\ref{tab:pakton_legal_bench_rag_results} and~\ref{tab:pakton_legal_bench_rag_results_conf_2}, this LLM Filtering variant significantly improves \textbf{precision}. However, this gain comes at the cost of \textbf{recall}, especially as the value of \texttt{top\_k} increases, due to the stricter content selection. Based on these findings, we conclude that LLM Filtering is particularly advantageous for low \texttt{top\_k} settings, where focused and precise evidence is preferred. In contrast, for higher \texttt{top\_k} values, the unfiltered setup is more appropriate to maintain broader recall.
+
+\paragraph{Character-Based vs.\ Span-Based Calculation of Precision and Recall:}  
+The \textsc{LegalBench-RAG} paper adopts a character-based approach for computing precision and recall, and we follow the same protocol for our primary evaluation. However, we observe that this method may penalize retrieval strategies—particularly those targeting precision like the \textit{LLM Filtering} variant—due to the fine-grained nature of the retrieved spans. Specifically, in many cases the retrieved content consists of subspans (often smaller than a sentence) that lie within the annotated answer span. Under the character-based metric, such partial matches are treated as incomplete, thereby reducing recall—even when the retrieved content is semantically relevant and informative.
+
+To further investigate this effect, we introduce a complementary \textit{span-based} evaluation. In this setting, a retrieved span is considered a \textit{hit} if it overlaps with any ground truth span, and a \textit{miss} otherwise. This binary overlap-based metric provides clearer insight into how often irrelevant spans are retrieved or relevant spans are entirely missed. The corresponding results are reported in Table~\ref{tab:pakton_legal_bench_rag_results_span_based} and should be interpreted in comparison with the character-based results in Table~\ref{tab:pakton_legal_bench_rag_results}.
+
+Overall, the span-based evaluation yields consistently higher values, with a particularly notable improvement in recall for the \textit{LLM Filtering} variant. This suggests that character-level metrics may disproportionately penalize methods optimized for precision, potentially underestimating their effectiveness. It is also important to consider that different datasets contain varying numbers of ground truth spans per example, which can limit achievable recall at low \texttt{top\_k} values. For reference, Table~\ref{tab:perfect_recall_only} presents the upper bounds on recall achievable under 100\% precision.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\columnwidth, trim=10 0 0 0, clip]{static/geval_distribution_2.png}
+    \caption{Comparative analysis of PAKTON vs.\ GPT-4o based on the G-EVAL framework across different criteria. Distribution of the aggregated scores across all criteria.}
+    \label{fig:geval_evaluation_box_plot}
+\end{figure}
+
+\paragraph{Variation on Character Volume per chunk for different retrieval methods:}  
+Our analysis of precision and recall is conducted across varying \texttt{top\_k} values. However, it is important to note that different retrieval methods return varying volumes of text, even when the same number of chunks is retrieved. For instance, one method may retrieve significantly fewer characters on average per chunk compared to another, despite retrieving the same number of chunks. To better understand this disparity, Table~\ref{tab:retrieved_characters_with_lengths} reports the total number of characters retrieved at various \texttt{k} values, the average answer length, and the average document length for each dataset.
+
+This analysis allows us to assess the actual amount of information passed to the LLM across methods. Notably, the \textit{LLM Filtering} variant consistently retrieves fewer characters than its unfiltered counterpart for the same number of chunks.
+
+Moreover, this analysis provides insight into the degree of document compression achieved during retrieval. For example, in the MAUD dataset, our \textit{span-based} Recall@64 reaches 85.45\% while retrieving, on average, 56{,}523 characters—compared to an average document length of 353{,}718 characters—indicating an approximate 84\% compression of the original document content. Similarly, in the ContractNLI dataset, the \textit{LLM Filtering} variant achieves a Recall@32 of 74.41\% using only 1{,}081 characters, which corresponds to nearly 90\% information compression.
+
+\paragraph{Plots.} Figure~\ref{fig:retrieval_plots} presents the evaluation plots for all four methods of LegalBenchRAG and PAKTON, including Precision@k, Recall@k, and Precision–Recall curves across all datasets. The results indicate that PAKTON consistently outperforms the other methods across all metrics.
+
+\paragraph{Conclusion:} Taking into account the span-based evaluation metrics—which provide a more representative measure of retrieval quality—and the observed degree of information compression, the \textit{Researcher} module demonstrates strong performance in the task of long-document retrieval within a practical deployment context.
+
+\begin{table*}[ht]
+\vskip -0.03in
+\centering
+\small
+\resizebox{0.93\textwidth}{!}{%
+\begin{tabular}{llrrrrrrr rrrrrrr}
+\hline
+\multicolumn{2}{c}{} & \multicolumn{7}{c}{\textbf{Precision @ $k$}} &
+\multicolumn{7}{c}{\textbf{Recall @ $k$}}\\
+\cmidrule(lr){3-9}\cmidrule(lr){10-16}
+\textbf{Dataset} & \textbf{Method} & 1 & 2 & 4 & 8 & 16 & 32 & 64 &
+1 & 2 & 4 & 8 & 16 & 32 & 64\\
+\hline
+\multirow{4}{*}{PrivacyQA}
+ & Naive              & 7.86 & 7.31 & 6.41 & 5.06 & 3.58 & 2.41 & 1.54 & 7.45 & 12.53 & 20.88 & 32.38 & 42.45 & 54.27 & 66.07\\
+ & RCTS               & 14.38 & 13.55 & 12.34 & 9.03 & 6.06 & 4.17 & 2.81 & 8.85 & 15.21 & 27.92 & 42.37 & 55.12 & 71.19 & 84.19\\
+ & Naive + Cohere     & 14.38 & 13.55 & 12.34 & 9.02 & 6.06 & 4.17 & 2.81 & 8.85 & 15.21 & 27.92 & 42.37 & 55.12 & 71.19 & 84.19\\
+ & RCTS + Cohere      & 13.94 & 15.91 & 13.32 & 9.57 & 6.88 & 4.68 & 3.28 &  7.32 & 16.12 & 25.65 & 35.60 & 51.87 & 64.98 & 79.61\\ \cline{2-16}
+& PAKTON & \textbf{19.94} & \textbf{16.84} & \textbf{11.44} & \textbf{8.62} & \textbf{7.38} & \textbf{6.42} & \textbf{6.08} & \textbf{13.34} & \textbf{22.43} & \textbf{32.67} & \textbf{43.39} & \textbf{61.65} & \textbf{82.30} & \textbf{89.42} \\
+
+\hline
+\multirow{4}{*}{ContractNLI}
+ & Naive              & 16.45 & 14.80 & 12.53 & 9.73 & 6.70 & 4.65 & 3.04 & 11.32 &  19.10 & 29.79 & 45.59 & 56.75 & 69.88 & 86.57\\
+ & RCTS               &  6.63 &  5.29 &  3.89 & 2.81 & 1.98 & 1.29 & 0.90 & 7.63 & 11.33 & 17.34 & 24.99 & 35.80 & 46.57 & 61.72\\
+ & Naive + Cohere     &  6.63 &  5.28 &  3.89 & 2.81 & 1.98 & 1.29 & 0.90 & 7.63 & 11.34 & 17.34 & 24.99 & 35.80 & 46.57 & 61.72\\
+ & RCTS + Cohere      &  5.08 &  5.59 &  5.04 & 3.67 & 2.52 & 1.75 & 1.17 &  4.91 &  9.33 & 16.09 & 25.83 & 35.04 & 46.90 & 62.97\\ \cline{2-16}
+ & PAKTON & \textbf{33.02} & \textbf{30.34} & \textbf{17.33} & \textbf{9.98} & \textbf{5.87} & \textbf{4.68} & \textbf{4.52} & \textbf{53.14} & \textbf{67.47} & \textbf{80.06} & \textbf{89.71} & \textbf{95.50} & \textbf{99.56} & \textbf{99.82} \\
+
+\hline
+\multirow{4}{*}{MAUD}
+ & Naive              & 3.36 & 2.65 & 2.18 & 1.89 & 1.48 & 1.06 & 0.75 & 2.54 & 3.12 & 4.53 & 8.75 & 13.16 & 18.36 & 25.62\\
+ & RCTS               & 2.65 & 1.77 & 1.96 & 1.40 & 1.39 & 1.15 & 0.82 &  1.65 &  2.09 & 4.59 & 6.18 & 12.93 & 21.04 & 28.28\\
+ & Naive + Cohere     & 2.64 & 1.77 & 1.96 & 1.40 & 1.38 & 1.15 & 0.82 &  1.65 &  2.09 & 5.59 & 6.18 & 12.93 & 21.04 & 28.28\\
+ & RCTS + Cohere      & 1.94 & 2.63 & 2.05 & 1.77 & 1.79 & 1.55 & 1.12 &  0.52 &  2.48 &  4.39 &  7.24 & 14.03 & 22.60 & 31.46\\ \cline{2-16}
+ & PAKTON & \textbf{25.47} & \textbf{17.45} & \textbf{10.51} & \textbf{7.24} & \textbf{5.08} & \textbf{3.18} & \textbf{1.85} & \textbf{23.99} & \textbf{30.09} & \textbf{34.49} & \textbf{46.42} & \textbf{59.74} & \textbf{74.96} & \textbf{82.80} \\
+
+\hline
+\multirow{4}{*}{CUAD}
+ & Naive              & 9.27 & 8.05 & 5.98 & 4.33 & 2.77 & 1.77 & 1.09 & 12.60 & 19.47 & 27.92 & 40.70 & 51.02 & 64.38 & 75.71\\
+ & RCTS               & 1.97 & 4.03 & 4.83 & 4.20 & 2.94 & 1.99 & 1.25 & 1.62 & 8.11 & 17.72 & 31.68 & 44.38 & 60.04 & 74.70\\
+ & Naive + Cohere     & 1.97 & 4.03 & 4.83 & 4.20 & 2.94 & 1.99 & 1.25 & 1.62 & 8.11 & 17.72 & 31.68 & 44.38 & 60.04 & 74.70\\
+ & RCTS + Cohere      & 3.53 & 4.18 & 6.18 & 5.06 & 3.93 & 2.74 & 1.66 &  3.17 &  7.33 & 18.26 & 28.67 & 42.50 & 55.66 & 70.19\\ \cline{2-16}
+ & PAKTON & \textbf{11.02} & \textbf{8.83} & \textbf{6.81} & \textbf{4.72} & \textbf{2.78} & \textbf{2.07} & \textbf{1.62} & \textbf{16.52} & \textbf{24.76} & \textbf{33.34} & \textbf{46.67} & \textbf{59.53} & \textbf{77.08} & \textbf{86.23} \\
+
+\hline
+\multirow{4}{*}{ALL}
+ & Naive              & 2.40 & 3.76 & 4.97 & 4.33 & 3.39 & 2.17 & 1.29 & 3.37 & 8.44 & 21.30 & 34.51 & 48.88 & 64.47 & 76.39\\
+ & RCTS               & 6.41 & 6.16 & 5.76 & 4.36 & 3.09 & 2.15 & 1.45 & 4.94 & 9.19 & 16.90 & 26.30 & 37.06 & 49.71 & 62.22\\
+ & Naive + Cohere     & 6.41 & 6.16 & 5.76 & 4.36 & 3.09 & 2.15 & 1.45 & 4.94 & 9.19 & 16.90 & 26.30 & 37.05 & 49.71 & 62.22\\
+ & RCTS + Cohere      & 6.13 & 7.08 & 6.65 & 5.02 & 3.78 & 2.68 & 1.81 &  3.98 &  8.82 & 16.10 & 24.34 & 35.86 & 47.54 & 61.06\\ \cline{2-16}
+ & PAKTON & \textbf{22.34} & \textbf{18.37} & \textbf{11.52} & \textbf{7.63} & \textbf{5.26} & \textbf{4.08} & \textbf{3.52} & \textbf{26.77} & \textbf{36.32} & \textbf{45.26} & \textbf{56.66} & \textbf{69.17} & \textbf{83.50} & \textbf{89.58} \\
+\hline
+\end{tabular}}
+\caption{Precision and Recall @ $k\in\{1,2,4,8,16,32,64\}$ for four retrieval pipelines on five legal-text datasets.}
+\label{tab:legalbench_rag}
+\end{table*}
+
+\begin{table*}[ht]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l|l|cccccccccccccc}
+\toprule
+& \multicolumn{1}{c|}{} & \multicolumn{7}{c}{Precision @ $k$} & \multicolumn{7}{c}{Recall @ $k$} \\
+\cmidrule(lr){3-9} \cmidrule(lr){10-16}
+\textbf{Dataset} & \textbf{LLM filtering} & 1 & 2 & 4 & 8 & 16 & 32 & 64 & 1 & 2 & 4 & 8 & 16 & 32 & 64 \\
+\midrule
+\multirow{2}{*}{\textbf{PrivacyQA}}    
+  & without & 19.94 & 16.84 & 11.44 & 8.62 & 7.38 & 6.42 & 6.08 & 13.34 & 22.43 & 32.67 & 43.39 & 61.65 & 82.30 & 89.42 \\
+  & with & 29.11 & 30.33 & 25.99 & 23.35  & 22.64 & 22.33 & 22.33 & 10.51 & 18.13 & 23.33 & 26.35 & 27.65 & 28.19 & 28.19 \\
+\midrule
+\multirow{2}{*}{\textbf{ContractNLI}} 
+  & without & 33.02 & 30.34 & 17.33 & 9.98  & 5.87  & 4.68 & 4.52  & 53.14 & 67.47 & 80.06 & 89.71 & 95.50 & 99.56 & 99.82 \\
+  & with & 59.59 & 51.36 & 46.32 & 45.00 & 45.00 & 44.87 & 44.87 & 38.53 & 45.25 & 51.95 & 54.94 & 58.00 & 58.69 & 58.69 \\
+\midrule
+\multirow{2}{*}{\textbf{MAUD}}        
+  & without & 25.47 & 17.45 & 10.51 & 7.24 & 5.08 & 3.18 & 1.85 & 23.99 & 30.09 & 34.49  & 46.42 & 59.74 & 74.96 & 82.80 \\
+  & with & 38.87 & 36.99 & 33.54 & 33.12 & 32.77 & 32.33 & 32.29 & 19.06 & 22.60 & 24.06 & 26.52 & 27.51 & 27.64 & 27.64 \\
+\midrule
+\multirow{2}{*}{\textbf{CUAD}}        
+  & without & 11.02 & 8.83 & 6.81 & 4.72 & 2.78 & 2.07 & 1.62 & 16.52 & 24.76 & 33.34 & 46.67 & 59.53 & 77.08 & 86.23 \\
+  & with & 29.14 & 29.53 & 29.31 & 28.86 & 28.89 & 28.79 & 28.77 & 25.31 & 30.30 & 34.33 & 37.68 & 38.24 & 38.68 & 38.68 \\
+\midrule
+\multirow{2}{*}{\textbf{ALL}}         
+  & without & \textbf{22.34} & \textbf{18.37} & \textbf{11.52} & \textbf{7.63} & \textbf{5.26} & \textbf{4.08} & \textbf{3.52} & \textbf{26.77} & \textbf{36.32} & \textbf{45.26} & \textbf{56.66} & \textbf{69.17} & \textbf{83.50} & \textbf{89.58} \\
+  & with & \textbf{39.17} & \textbf{37.03} & \textbf{33.78} & \textbf{32.58} & \textbf{32.26} & \textbf{32.08} & \textbf{32.05} & \textbf{23.37} & \textbf{29.07} & \textbf{33.42} & \textbf{36.36} & \textbf{37.84} & \textbf{38.29} & \textbf{38.29} \\
+\bottomrule
+\end{tabular}
+}
+\caption{Performance comparison on different datasets for Precision and Recall at various k values for PAKTON's Researcher and Archivist under configuration 1.}
+\label{tab:pakton_legal_bench_rag_results}
+\end{table*}
+
+\begin{table*}[ht]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l|l|ccccccc|ccccccc}
+\toprule
+& \multicolumn{1}{c|}{} & \multicolumn{7}{c}{Precision @ $k$} & \multicolumn{7}{c}{Recall @ $k$} \\
+\cmidrule(lr){3-9} \cmidrule(lr){10-16}
+\textbf{Dataset} & \textbf{LLM filtering} & 1 & 2 & 4 & 8 & 16 & 32 & 64 & 1 & 2 & 4 & 8 & 16 & 32 & 64 \\
+\midrule
+\multirow{2}{*}{\textbf{PrivacyQA}}    
+  & without & 18.64 & 17.66 & 14.13 & 10.39 & 7.51 & 6.34 & 6.01 & 17.00 & 26.39 & 39.99 & 62.73 & 79.24 & 94.90 & 97.35 \\
+  & with    & 33.02 & 31.85 & 29.33 & 26.66 & 26.11 & 25.70 & 25.68 & 10.35 & 18.20 & 23.12 & 26.95 & 28.20 & 28.58 & 28.76 \\
+\midrule
+\multirow{2}{*}{\textbf{ContractNLI}} 
+  & without & \textbf{42.21} & \textbf{36.86} & \textbf{19.81} & \textbf{10.58} & \textbf{6.13} & \textbf{4.63} & \textbf{4.53} & \textbf{67.67} & \textbf{83.35} & \textbf{90.87} & \textbf{95.16} & \textbf{98.19} & \textbf{99.81} & \textbf{100.00} \\
+  & with    & 77.51 & 67.15 & 64.02 & 63.02 & 63.22 & 63.23 & 63.23 & 51.78 & 58.93 & 63.10 & 64.52 & 65.07 & 65.24 & 65.24 \\
+\midrule
+\multirow{2}{*}{\textbf{MAUD}}        
+  & without & 17.77 & 11.35 & 9.41 & 8.32 & 5.84 & 3.50 & 1.92 & 17.06 & 19.94 & 30.57 & 49.94 & 68.82 & 80.10 & 86.51 \\
+  & with    & 37.71 & 33.60 & 31.01 & 32.12 & 32.11 & 31.96 & 31.92 & 17.92 & 21.62 & 24.69 & 28.02 & 29.90 & 30.48 & 30.49 \\
+\midrule
+\multirow{2}{*}{\textbf{CUAD}}        
+  & without & 2.61 & 5.10 & 5.72 & 4.18 & 2.84 & 1.84 & 1.29 & 4.38 & 16.11 & 34.09 & 53.00 & 69.13 & 80.65 & 86.20 \\
+  & with    & 25.51 & 28.62 & 30.28 & 31.13 & 30.27 & 30.21 & 30.22 & 15.54 & 23.74 & 30.06 & 33.11 & 33.60 & 33.60 & 33.65 \\
+\midrule
+\multirow{2}{*}{\textbf{ALL}}         
+  & without & 20.31 & 17.74 & 12.27 & 8.37 & 5.58 & 4.08 & 3.44 & 26.53 & 36.45 & 48.88 & 65.21 & 78.845 & 88.87 & 92.52 \\
+  & with    & 43.44 & 40.30 & 38.66 & 38.23 & 37.93 & 37.78 & 37.76 & 23.90 & 30.62 & 35.24 & 38.15 & 39.19 & 39.48 & 39.54 \\
+\bottomrule
+\end{tabular}
+}
+\caption{Performance comparison across different datasets in terms of Precision and Recall at various $k$ values, using PAKTON’s Researcher and Archivist under Configuration 2.}
+\label{tab:pakton_legal_bench_rag_results_conf_2}
+\end{table*}
+
+\begin{table*}[ht]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l|l|cccccccccccccc}
+\toprule
+& \multicolumn{1}{c|}{} & \multicolumn{7}{c}{Precision @ $k$} & \multicolumn{7}{c}{Recall @ $k$} \\
+\cmidrule(lr){3-9} \cmidrule(lr){10-16}
+\textbf{Dataset} & \textbf{LLM filtering} & 1 & 2 & 4 & 8 & 16 & 32 & 64 & 1 & 2 & 4 & 8 & 16 & 32 & 64 \\
+\midrule
+\multirow{2}{*}{\textbf{PrivacyQA}}    
+  & without & 35.08 & 30.37 & 23.69 & 17.86 & 14.79 & 11.73 & 10.88 & 19.65 & 32.23 & 43.52 & 58.46 & 75.93 & 89.34 & 94.18 \\
+  & with    & 33.51 & 32.98 & 28.01 & 26.16 & 25.61 & 25.43 & 25.39 & 20.36 & 31.65 & 37.62 & 42.49 & 43.94 & 46.89 & 46.89 \\
+\midrule
+\multirow{2}{*}{\textbf{ContractNLI}} 
+  & without & 58.76 & 39.69 & 24.10 & 13.63 & 7.86 & 5.99 & 5.87 & 53.74 & 68.56 & 80.50 & 89.86 & 95.45 & 99.48 & 99.74 \\
+  & with    & 63.73 & 54.12 & 49.40 & 48.01 & 47.90 & 47.81 & 47.81 & 54.10 & 61.30 & 68.17 & 71.60 & 72.90 & 73.41 & 73.41 \\
+\midrule
+\multirow{2}{*}{\textbf{MAUD}}        
+  & without & 35.05 & 23.97 & 15.34 & 11.08 & 8.02 & 5.27 & 3.08 & 32.32 & 38.24 & 43.56 & 54.98 & 67.17 & 81.12 & 85.45 \\
+  & with    & 41.58 & 36.01 & 32.22 & 31.34 & 30.72 & 30.33 & 30.29 & 36.90 & 41.18 & 44.18 & 47.77 & 48.55 & 48.81 & 48.81 \\
+\midrule
+\multirow{2}{*}{\textbf{CUAD}}        
+  & without & 20.10 & 15.46 & 10.82 & 8.13 & 5.30 & 3.91 & 3.08 & 16.86 & 24.98 & 33.95 & 47.84 & 60.85 & 77.66 & 84.38 \\
+  & with    & 35.75 & 30.93 & 29.38 & 29.11 & 28.83 & 28.82 & 28.81 & 30.99 & 37.81 & 43.14 & 47.04 & 48.85 & 49.28 & 49.28 \\
+\midrule
+\multirow{2}{*}{\textbf{ALL}}         
+  & without & 37.24 & 27.37 & 18.49 & 12.68 & 8.99 & 6.73 & 5.73 & 30.64 & 41.00 & 50.38 & 62.79 & 74.85 & 86.90 & 90.94 \\
+  & with    & 43.64 & 38.51 & 34.75 & 33.66 & 33.27 & 33.10 & 33.08 & 35.59 & 42.99 & 48.28 & 52.23 & 53.56 & 54.60 & 54.60 \\
+\bottomrule
+\end{tabular}
+}
+\caption{Performance comparison across different datasets in terms of Precision and Recall at various k values, using PAKTON’s Researcher and Archivist components under Configuration 1, based on span-based calculation of Precision and Recall.}
+\label{tab:pakton_legal_bench_rag_results_span_based}
+\end{table*}
+
+\begin{table}[ht]
+\centering
+\resizebox{0.98\columnwidth}{!}{%
+\begin{tabular}{l|ccccccc}
+\toprule
+& \multicolumn{7}{c}{Recall @ $k$} \\
+\cmidrule(lr){2-8}
+\textbf{Dataset} & 1 & 2 & 4 & 8 & 16 & 32 & 64 \\
+\midrule
+PrivacyQA     & 61.91 & 86.97 & 96.42 & 99.12 & 100.00 & 100.00 & 100.00 \\
+ContractNLI   & 82.16 & 98.69 & 100.00 & 100.00 & 100.00 & 100.00 & 100.00 \\
+MAUD          & 68.19 & 92.35 & 98.21 & 99.86 & 100.00 & 100.00 & 100.00 \\
+CUAD          & 82.14 & 94.30 & 98.44 & 100.00 & 100.00 & 100.00 & 100.00 \\
+\midrule
+\textbf{ALL} & \textbf{73.63} & \textbf{93.09} & \textbf{98.27} & \textbf{99.75} & \textbf{100.00} & \textbf{100.00} & \textbf{100.00} \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Recall @ $k$ for perfect retrieval using ground-truth snippets. Note: Precision is 100\% for all cases.}
+\label{tab:perfect_recall_only}
+\end{table}
+
+\begin{table*}[ht]
+\small
+\centering
+\begin{tabular}{l|l|ccccccc|cc}
+\toprule
+& & \multicolumn{7}{c|}{Number of Characters @ $k$} & \multicolumn{2}{c}{Avg. Lengths} \\
+\cmidrule(lr){3-9} \cmidrule(lr){10-11}
+\textbf{Dataset} & \textbf{LLM Filtering} & 1 & 2 & 4 & 8 & 16 & 32 & 64 & \textbf{Answer} & \textbf{Document} \\
+\midrule
+\multirow{2}{*}{PrivacyQA}     
+  & without & 682 & 1415 & 2985 & 5706 & 10341 & 17961 & 21080 &  &  \\
+  & with    & 207 & 403 & 711 & 1088 & 1362 & 1476 & 1523 & 1200 & 25266 \\
+\midrule
+\multirow{2}{*}{ContractNLI}   
+  & without & 789 & 1371 & 2738 & 4869 & 8126 & 10774 & 11112 &  &  \\
+  & with    & 250 & 412 & 651 & 885 & 1036 & 1081 & 1081 & 438 & 10782 \\
+\midrule
+\multirow{2}{*}{MAUD}          
+  & without & 908 & 1765 & 3542 & 7069 & 14248 & 28699 & 56523 &  &  \\
+  & with    & 301 & 477 & 678 & 906 & 1027 & 1059 & 1071 & 1259 & 353718 \\
+\midrule
+\multirow{2}{*}{CUAD}          
+  & without & 771 & 1643 & 3496 & 7002 & 13694 & 24057 & 35750 &  &  \\
+  & with    & 250 & 383 & 527 & 749 & 844 & 896 & 971 & 600 & 69303 \\
+\bottomrule
+\end{tabular}
+\caption{Average number of characters retrieved @ $k$ for each dataset for PAKTON configuration 1. Comparison with average length of ground truth (answer) and document lengths.}
+\label{tab:retrieved_characters_with_lengths}
+\end{table*}
+
+\begin{figure*}[ht]
+  \centering
+  \hspace*{-0.12\textwidth} % shift first image left
+  \begin{subfigure}[b]{0.68\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{static/precisionRetrieval.jpg}
+    \caption{Precision @ k across all datasets}
+    \label{fig:plot1}
+  \end{subfigure}
+  \hspace{0.05\textwidth}
+  \begin{subfigure}[b]{0.8\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{static/recallRetrieval.jpg}
+    \caption{Recall @ k across all datasets}
+    \label{fig:plot2}
+  \end{subfigure}
+  \hspace*{-0.12\textwidth} % shift first image left
+  \begin{subfigure}[b]{0.68\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{static/precision_recall.jpg}
+    \caption{Precision - Recall across all datasets}
+    \label{fig:plot3}
+  \end{subfigure}
+  \caption{Precision and Recall values for different k across all datasets for all methods}
+  \label{fig:retrieval_plots}
+\end{figure*}

@@ -71,12 +71,44 @@ const AboutPakton = () => {
 
         <div className="details-card">
           <div className="card-header">
+            <h2>❓ But, Why PAKTON?</h2>
+          </div>
+          <div className="card-body">
+            <h3>Proven Performance</h3>
+            <ul className="performance-list">
+              <li><strong>Superior Generation Quality:</strong> Outperforms baseline methods on the ContractNLI dataset</li>
+              <li><strong>State-of-the-Art Retrieval:</strong> RAG component (Researcher) leads performance on LegalBenchRAG benchmark</li>
+              <li><strong>Human-Preferred:</strong> Chosen by human evaluators over ChatGPT for contract analysis—especially for <strong>Explainability</strong> and <strong>Completeness</strong></li>
+              <li><strong>LLM Validation:</strong> GEVAL evaluations show consistent preference for PAKTON over GPT-4o</li>
+            </ul>
+
+            <h3>Robust, Open, and Adaptable</h3>
+            <ul className="adaptability-list">
+              <li><strong>Privacy-First:</strong> Fully open-source with on-premise deployment capabilities</li>
+              <li><strong>Robust:</strong> According to our robustness analysis, it bridges performance gaps between small and large LLMs, enabling smaller open-source models to rival larger proprietary ones</li>
+              <li><strong>Plug-and-Play:</strong> Modular architecture for seamless extension and custom workflow integration</li>
+              <li><strong>Transparent Design:</strong> Explainable outputs that contrast with typical black-box AI models</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="details-card">
+          <div className="card-header">
             <h2>Framework Architecture</h2>
           </div>
           <div className="card-body">
             <p>
               The PAKTON framework consists of three specialized agents that collaborate with one another. Each agent plays a distinct role in the reasoning and information retrieval process, contributing to a more accurate, explainable, and well-supported response.
             </p>
+            
+            <div className="architecture-image-container">
+              <img 
+                src={`${process.env.PUBLIC_URL}/PAKTON_architecture.png`}
+                alt="PAKTON Framework Architecture showing the three agents: Archivist, Interrogator, and Researcher with their interactions and components" 
+                className="architecture-image"
+              />
+              <p className="architecture-caption">PAKTON Architecture Diagram</p>
+            </div>
             
             <div className="agent-cards">
               <div className="agent-card">
@@ -274,6 +306,68 @@ const AboutPakton = () => {
           </div>
         </div>
 
+        {/* ContractNLI Card */}
+        <div className="details-card">
+          <div className="card-header">
+            <h2>ContractNLI Experiments</h2>
+          </div>
+          <div className="card-body">
+            <div className="overview-container">
+              <h3>Natural Language Inference in Legal Contracts</h3>
+              <p>
+                We evaluated PAKTON on the ContractNLI dataset to assess its performance in natural language inference tasks 
+                within legal contract documents. The task involves determining whether a given statement is entailed by, 
+                contradicted by, or neutral with respect to a contract document.
+              </p>
+              
+              <h3>Key Findings</h3>
+              <ul className="criteria-list">
+                <li><strong>Superior Performance:</strong> PAKTON consistently outperforms baseline methods across all models, including domain-specific fine-tuned models like Saul and matches or surpasses proprietary models like GPT-4o</li>
+                <li><strong>Model Robustness:</strong> Achieves remarkably low performance variation (CV of 12.6%) across different LLMs compared to baseline approaches (CV &gt;25%)</li>
+                <li><strong>Performance Stability:</strong> Reduces the gap between different LLMs while maintaining high accuracy, with only 3.8 percentage points difference between models (compared to 22.83% in baseline)</li>
+                <li><strong>Open-Source Advantage:</strong> Demonstrates that open-source models with PAKTON can match or exceed the performance of proprietary models, enabling secure processing of sensitive legal information</li>
+                <li><strong>Statistical Validation:</strong> Confirmed robustness through rigorous statistical analysis, including ANOVA (F-statistic = 3.05, p=0.12) and regression analysis (slope = 0.44)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* LegalBenchRAG Card */}
+        <div className="details-card">
+          <div className="card-header">
+            <h2>LegalBenchRAG Experiments</h2>
+          </div>
+          <div className="card-body">
+            <div className="overview-container">
+              <h3>Retrieval Performance Evaluation</h3>
+              <p>
+                LegalBenchRAG is a comprehensive benchmark designed to evaluate retrieval-augmented generation systems in the legal domain. 
+                We assessed PAKTON's retrieval capabilities across four legal domains: NDAs, M&A agreements, commercial contracts, 
+                and consumer-facing privacy policies, focusing on the performance of our Archivist (indexing) and Researcher (retrieval) modules.
+              </p>
+              
+              <h3>Key Findings</h3>
+              <ul className="criteria-list">
+                <li><strong>Superior Recall Performance:</strong> PAKTON achieves over 5× improvement in Recall@1 (26.77% vs. 4.94%) compared to the strongest baseline</li>
+                <li><strong>Enhanced Precision:</strong> More than 3× improvement in Precision@1 (22.34% vs. 6.41%) over baseline methods</li>
+                <li><strong>Consistent Performance:</strong> Demonstrates superior performance across all legal document types in the benchmark</li>
+                <li><strong>Scalable Retrieval:</strong> Maintains high performance across different k values, showing robust retrieval at various thresholds</li>
+                <li><strong>Architecture Effectiveness:</strong> The combination of structural parsing, hybrid retrieval (BM25 + dense embeddings), and sophisticated reranking proves highly effective for legal text retrieval</li>
+              </ul>
+              
+              <div className="info-box">
+                <div className="info-content">
+                  <p>
+                    These results validate PAKTON's retrieval architecture and demonstrate that our multi-agent approach 
+                    significantly outperforms traditional retrieval methods in legal document analysis, achieving both 
+                    higher precision and recall across multiple legal domains.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* New G-EVAL Card */}
         <div className="details-card">
           <div className="card-header">
@@ -446,12 +540,72 @@ const AboutPakton = () => {
                 Try the Demo
                 </button>
                 
-                <button className="github-button">
+                <button className="github-button" onClick={() => window.open('https://github.com/petrosrapto/PAKTON', '_blank')}>
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
                   </svg>
                   View on GitHub
                 </button>
+                
+                <button 
+                  className="paper-button"
+                  onClick={() => window.open("https://arxiv.org/abs/2506.00608", "_blank")}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm0 2v14h10V5H7zm2 2h6v1H9V7zm0 2h6v1H9V9zm0 2h6v1H9v-1zm0 2h4v1H9v-1z"/>
+                  </svg>
+                  Read the Paper
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="details-card">
+          <div className="card-body">
+            <div className="author-container">
+              <div className="author-profile">
+                <div className="author-details">
+                  <div className="name-title-group">
+                    <h3>Raptopoulos Petros</h3>
+                    <p className="author-title">AI Software Engineer</p>
+                  </div>
+                  <p className="author-email">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                      <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                    petrosrapto@gmail.com
+                  </p>
+                </div>
+                
+                <div className="author-links">
+                  <a 
+                    href="https://www.linkedin.com/in/petrosrapto/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="social-link linkedin-link"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                      <rect x="2" y="9" width="4" height="12"></rect>
+                      <circle cx="4" cy="4" r="2"></circle>
+                    </svg>
+                    LinkedIn Profile
+                  </a>
+                  
+                  <a 
+                    href="https://github.com/petrosrapto" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="social-link github-link"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                    </svg>
+                    GitHub Profile
+                  </a>
+                </div>
               </div>
             </div>
           </div>

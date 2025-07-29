@@ -19,6 +19,7 @@
   letter-spacing: -0.025em;
   background: linear-gradient(45deg, #1e293b, #475569);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -28,11 +29,76 @@
   font-weight: 500;
 }
 
-.experiment-cards {
+/* Resource buttons */
+.resource-buttons {
   display: flex;
-  gap: 40px;
   justify-content: center;
-  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.resource-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 25px;
+  border-radius: 25px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.paper-button {
+  background-color: #dc2626;
+}
+
+.paper-button:hover {
+  background-color: #b91c1c;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 15px rgba(220, 38, 38, 0.25);
+}
+
+.github-button {
+  background-color: #1e293b;
+}
+
+.github-button:hover {
+  background-color: #0f172a;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 15px rgba(30, 41, 59, 0.25);
+}
+
+.resource-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.experiment-cards {
+  overflow: hidden;
+  width: 100%;
+  max-width: 1000px;
+  position: relative;
+  padding: 20px 0;
+  background-color: #f8fafc;
+}
+
+.carousel-wrapper {
+  display: flex;
+  transition: transform 0.5s ease;
+  width: 400%;
+  padding: 10px 0;
+}
+
+.carousel-wrapper .card {
+  width: 37.5%;
+  flex-shrink: 0;
+  margin: 0 20px;
+  max-width: 480px;
 }
 
 .card {
@@ -73,8 +139,16 @@
   background: linear-gradient(135deg, #3b82f6, #2563eb);
 }
 
+.contractnli-header {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.retrieval-header {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
 .human-header {
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
 }
 
 .about-header {
@@ -111,6 +185,7 @@
   margin-bottom: 16px;
   font-size: 1.75rem;
   font-weight: 700;
+  text-align: center;
 }
 
 .card p {
@@ -164,8 +239,16 @@
   background-color: #3B82F6;
 }
 
+.contractnli-button {
+  background-color: #3B82F6;
+}
+
+.retrieval-button {
+  background-color: #3B82F6;
+}
+
 .human-button {
-  background-color: #6366f1;
+  background-color: #3B82F6;
 }
 
 .about-button {
@@ -181,8 +264,16 @@
   background-color: #2563eb;
 }
 
+.contractnli-button:hover {
+  background-color: #2563eb;
+}
+
+.retrieval-button:hover {
+  background-color: #2563eb;
+}
+
 .human-button:hover {
-  background-color: #4f46e5;
+  background-color: #2563eb;
 }
 
 .about-button:hover {
@@ -257,6 +348,24 @@
   .advantages-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  
+  .carousel-arrow-left {
+    left: -15px;
+  }
+  
+  .carousel-arrow-right {
+    right: -15px;
+  }
+  
+  .carousel-arrow {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .carousel-arrow svg {
+    width: 16px;
+    height: 16px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -272,6 +381,12 @@
     font-size: 1.1rem;
   }
   
+  .resource-buttons {
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 25px;
+  }
+  
   .card-header {
     height: 100px;
   }
@@ -284,4 +399,89 @@
   .advantage-item {
     padding: 20px;
   }
+  
+  .carousel-container {
+    margin: 0 20px;
+  }
+  
+  .carousel-arrow-left {
+    left: -10px;
+  }
+  
+  .carousel-arrow-right {
+    right: -10px;
+  }
+  
+  .carousel-wrapper .card {
+    margin: 0 10px;
+  }
+}
+
+/* Carousel Styles */
+.carousel-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 40px;
+  padding: 20px 60px;
+  background-color: #f8fafc;
+}
+
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.carousel-arrow:hover {
+  background: #f8fafc;
+  border-color: #3b82f6;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.carousel-arrow svg {
+  width: 20px;
+  height: 20px;
+  color: #64748b;
+}
+
+.carousel-arrow:hover svg {
+  color: #3b82f6;
+}
+
+.carousel-arrow-left {
+  left: -25px;
+}
+
+.carousel-arrow-right {
+  right: -25px;
+}
+
+.carousel-arrow.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.carousel-arrow.disabled:hover {
+  background: white;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.carousel-arrow.disabled svg {
+  color: #cbd5e1;
 }

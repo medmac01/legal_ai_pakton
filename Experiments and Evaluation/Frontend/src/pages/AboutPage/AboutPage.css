@@ -309,7 +309,8 @@
   }
   
   .about-pakton .demo-button,
-  .about-pakton .github-button {
+  .about-pakton .github-button,
+  .about-pakton .paper-button {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -340,8 +341,18 @@
     background-color: #0f172a;
   }
   
+  .about-pakton .paper-button {
+    background-color: #dc2626;
+    color: white;
+  }
+  
+  .about-pakton .paper-button:hover {
+    background-color: #b91c1c;
+  }
+  
   .about-pakton .demo-button svg,
-  .about-pakton .github-button svg {
+  .about-pakton .github-button svg,
+  .about-pakton .paper-button svg {
     width: 20px;
     height: 20px;
   }
@@ -407,8 +418,174 @@
     color: #64748b;
   }
   
-  /* Responsive design */
-  @media (max-width: 768px) {
+  /* Architecture image container */
+.about-pakton .architecture-image-container {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.about-pakton .architecture-image-container h3 {
+  color: #1e293b;
+  font-size: 1.3rem;
+  margin-bottom: 20px;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 8px;
+}
+
+.about-pakton .architecture-image {
+  max-width: 70%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.about-pakton .architecture-image:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+.about-pakton .architecture-caption {
+  color: #64748b;
+  font-size: 0.9rem;
+  font-style: italic;
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+/* Performance and adaptability lists styling */
+.about-pakton .performance-list,
+.about-pakton .adaptability-list {
+  list-style: none;
+  padding: 0;
+  margin: 15px 0;
+}
+
+.about-pakton .performance-list li,
+.about-pakton .adaptability-list li {
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.about-pakton .performance-list li:last-child,
+.about-pakton .adaptability-list li:last-child {
+  border-bottom: none;
+}
+
+.about-pakton .performance-list li strong,
+.about-pakton .adaptability-list li strong {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+/* Author section styling */
+.about-pakton .author-container {
+  padding: 20px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+}
+
+.about-pakton .author-profile {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.about-pakton .author-details {
+  text-align: left;
+  flex: 0 1 auto;
+  padding-right: 10px;
+  padding-top: 10px;
+}
+
+.about-pakton .name-title-group {
+  margin-bottom: 5px;
+}
+
+.about-pakton .author-details h3 {
+  color: #1e293b;
+  font-size: 1.4rem;
+  margin: 0;
+  padding: 0;
+  font-weight: 600;
+  border-bottom: none;
+  line-height: 1.1;
+}
+
+.about-pakton .author-title {
+  color: #64748b;
+  font-size: 1rem;
+  margin: 0;
+  padding: 0;
+  font-weight: 500;
+  line-height: 1.1;
+  display: block;
+}
+
+.about-pakton .author-email {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-size: 0.9rem;
+  margin: 0;
+  padding-top: 3px;
+}
+
+.about-pakton .author-email svg {
+  width: 16px;
+  height: 16px;
+  color: #3b82f6;
+}
+
+.about-pakton .author-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.about-pakton .social-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  color: white;
+}
+
+.about-pakton .linkedin-link {
+  background-color: #0077b5;
+}
+
+.about-pakton .linkedin-link:hover {
+  background-color: #005885;
+  transform: translateY(-2px);
+}
+
+.about-pakton .github-link {
+  background-color: #1e293b;
+}
+
+.about-pakton .github-link:hover {
+  background-color: #0f172a;
+  transform: translateY(-2px);
+}
+
+.about-pakton .social-link svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
     .about-pakton .hero-section h1 {
       font-size: 2rem;
     }
@@ -435,6 +612,28 @@
     .about-pakton .button-container {
       flex-direction: column;
       gap: 15px;
+    }
+    
+    .about-pakton .author-profile {
+      flex-direction: column;
+      gap: 20px;
+      align-items: center;
+    }
+    
+    .about-pakton .author-details {
+      text-align: center;
+      padding-top: 10px;
+    }
+    
+    .about-pakton .name-title-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    .about-pakton .author-links {
+      gap: 10px;
+      align-items: center;
     }
   }
   
