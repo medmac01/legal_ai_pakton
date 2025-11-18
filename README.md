@@ -4,11 +4,15 @@
 
 # PAKTON: A Multi-Agent Framework for Question Answering in Long Legal Agreements
 
+**[Petros Raptopoulos](https://petrosraptopoulos.com/), Giorgos Filandrianos, Maria Lymperaiou, Giorgos Stamou**
+
 **Making Contract Review Accessible to Everyone Through AI**
 
-[![Paper](https://img.shields.io/badge/arXiv-2506.00608-b31b1b.svg)](https://arxiv.org/abs/2506.00608) [![Demo](https://img.shields.io/badge/Demo-pakton.site-blue.svg)](https://pakton.site) [![License](https://img.shields.io/badge/License-Apache_v2.0-green.svg)](./LICENSE) [![Under Review](https://img.shields.io/badge/Status-Under%20Review%20ARR%20May%202025-orange.svg)](#)
+[![Paper](https://img.shields.io/badge/arXiv-2506.00608-b31b1b.svg)](https://arxiv.org/abs/2506.00608) [![Demo](https://img.shields.io/badge/Demo-pakton.site-blue.svg)](https://pakton.site) [![License](https://img.shields.io/badge/License-Apache_v2.0-green.svg)](./LICENSE)
 
-[**Try PAKTON**](https://pakton.site) | [**View Evaluation and Experiments**](https://pakton.site/evaluation/) | [**Read Paper**](https://arxiv.org/abs/2506.00608)
+[![Venue](https://img.shields.io/badge/Venue-Accepted%20and%20Presented%20Orally%20at%20the%20Main%20Conference%20of%20EMNLP%202025-red.svg)](https://aclanthology.org/2025.emnlp-main.403/)
+
+[**Try PAKTON**](https://pakton.site) | [**View Evaluation and Experiments**](https://pakton.site/evaluation/) | [**Read Paper**](https://aclanthology.org/2025.emnlp-main.403/) | [**View Poster**](./Docs/EMNLP%202025_Poster.pdf) | [**View Recording**](https://drive.google.com/file/d/1xiVGc8zVxImFo4aX-bTOh1BcEN7pdFm5/view) | [**Underline**](https://underline.io/lecture/130155-pakton-a-multi-agent-framework-for-question-answering-in-long-legal-agreements)
 
 </div>
 
@@ -81,6 +85,7 @@ We evaluated PAKTON using both qualitative and quantitative methods to ensure it
 ### Qualitative Evaluation
 - **[Human Evaluation](./Experiments%20and%20Evaluation/Qualitative/Human%20Evaluation/README.md)** - Human assessment methodology and results
 - **[GEVAL Assessment](./Experiments%20and%20Evaluation/Qualitative/LLM%20as%20a%20judge%20-%20GEVAL/README.md)** - Automated qualitative evaluation using LLM-as-a-judge
+- **[Statistical Agreement](./Experiments%20and%20Evaluation/Qualitative/Statistical%20Agreement/README.md)** - Statistical validation of alignment between LLM and human evaluations
 
 ### Quantitative Evaluation
 - **[ContractNLI Classification](./Experiments%20and%20Evaluation/Quantitative/Classification%20Performance%20-%20ContractNLI/README.md)** - Classification Performance
@@ -94,6 +99,7 @@ We evaluated PAKTON using both qualitative and quantitative methods to ensure it
 - **State-of-the-Art Retrieval**: RAG component (Researcher) leads performance on LegalBenchRAG benchmark  
 - **Human-Preferred**: Chosen by human evaluators over ChatGPT for contract analysis—especially for **Explainability** and **Completeness**.
 - **LLM Validation**: GEVAL evaluations show consistent preference for PAKTON over GPT-4o
+- **Statistical Validation**: Strong statistical agreement (cosine similarity 0.88-0.92) between automated and human evaluation methods confirms reliability of assessment results
 
 ### **Robust, Open, and Adaptable**
 
@@ -115,7 +121,8 @@ PAKTON/
 ├── Experiments and Evaluation/                         # All experimental work and evaluation
 │   ├── Qualitative/                                    # Qualitative evaluation methods
 │   │   ├── Human Evaluation/                           # Human assessment results
-│   │   └── LLM as a judge - GEVAL/                     # Automated evaluation using GEVAL
+│   │   ├── LLM as a judge - GEVAL/                     # Automated evaluation using GEVAL
+│   │   └── Statistical Agreement/                      # Statistical validation between LLM and human evaluations
 │   └── Quantitative/                                   # Quantitative performance evaluation
 │       ├── Classification Performance - ContractNLI/   # ContractNLI experiments
 │       └── RAG Performance - LegalBenchRAG/            # LegalBenchRAG experiments

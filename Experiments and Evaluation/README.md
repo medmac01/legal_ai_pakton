@@ -12,7 +12,8 @@ Experiments and Evaluation/                         # Directory for experiments 
 ├── Frontend/                                       # Frontend to display the results of the experiments
 ├── Qualitative/                                    # Qualitative evaluation methods
 │   ├── Human Evaluation/                           # Human-based evaluation - survey and results - Section 4.2 of the paper
-│   └── LLM as a judge - GEVAL/                     # G-EVAL automated evaluation - Section 4.3 of the paper
+│   ├── LLM as a judge - GEVAL/                     # G-EVAL automated evaluation - Section 4.3 of the paper
+│   └── Statistical Agreement/                      # Statistical agreement analysis between LLM and human evaluations - Appendix A.3 of the paper
 └── Quantitative/                                   # Quantitative evaluation methods
     ├── Classification Performance - ContractNLI/   # ContractNLI dataset evaluation - Section 4.1.1 of the paper
     └── RAG Performance - LegalBenchRAG/            # LegalBenchRAG dataset evaluation - Section 4.1.2 of the paper
@@ -29,6 +30,7 @@ The experiments evaluate PAKTON's performance across multiple dimensions:
 ### Qualitative Evaluation
 - **G-EVAL Framework**: LLM-based evaluation of response quality (Section 4.3)
 - **Human Evaluation**: Human expert assessment of generated responses
+- **Statistical Agreement**: Statistical validation of alignment between LLM and human evaluations (Appendix A.3)
 
 ## Key Experimental Components
 
@@ -62,9 +64,18 @@ Located in `Qualitative/Human Evaluation/`
 - **Evaluators**: Legal domain experts
 - **Metrics**: Human-perceived quality
 
+### 5. Statistical Agreement Analysis
+Located in `Qualitative/Statistical Agreement/`
+
+- **Purpose**: Validate consistency between LLM-based and human evaluation methods
+- **Methodology**: Transform G-EVAL scores to categorical votes and compare with human judgments
+- **Analysis**: Distributional similarity using cosine similarity, MAE/RMSE, variance tests, and distribution tests
+- **Key Finding**: Average cosine similarity of 0.88 (0.9164 excluding outlier criterion) demonstrates strong statistical agreement
+
 ## Results Summary
 
 The experiments demonstrate PAKTON's effectiveness across multiple evaluation scenarios:
 
 - **Quantitative Performance**: Competitive results on standard legal NLP benchmarks
 - **Qualitative Assessment**: High-quality responses as evaluated by both LLM judges and human experts
+- **Evaluation Validation**: Strong statistical agreement between automated and human evaluation methods, with cosine similarity of 0.88-0.92 across evaluation criteria
