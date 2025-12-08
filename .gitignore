@@ -58,4 +58,4 @@ yarn-error.log*
 # VSCode
 .vscode/
 
-nginx.conf
+config.yaml

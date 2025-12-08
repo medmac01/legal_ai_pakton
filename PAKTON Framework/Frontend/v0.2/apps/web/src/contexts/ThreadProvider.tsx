@@ -6,7 +6,6 @@ import {
 } from "@opencanvas/shared/models";
 import { CustomModelConfig } from "@opencanvas/shared/types";
 import { Thread } from "@langchain/langgraph-sdk";
-import { createClient } from "../hooks/utils";
 import { createContext, ReactNode, useContext, useMemo, useState } from "react";
 import { useUserContext } from "./UserContext";
 import { useToast } from "@/hooks/use-toast";
@@ -146,28 +145,32 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
       });
       return;
     }
-    const client = createClient();
+    // LangGraph server removed - create stub thread locally
     setCreateThreadLoading(true);
 
     try {
-      const thread = await client.threads.create({
+      const thread = {
+        thread_id: `thread_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        status: 'idle',
+        values: {},
+        interrupts: {},
         metadata: {
           supabase_user_id: user.id,
           customModelName: modelName,
           modelConfig: {
             ...modelConfig,
-            // Ensure Azure config is included if needed
             ...(modelConfig.provider === "azure_openai" && {
               azureConfig: modelConfig.azureConfig,
             }),
           },
         },
-      });
+      } as Thread;
 
       setThreadId(thread.thread_id);
-      // Fetch updated threads so the new thread is included.
-      // Do not await since we do not want to block the UI.
-      getUserThreads().catch(console.error);
+      // Don't fetch threads - we're not using LangGraph
+      // getUserThreads().catch(console.error);
       return thread;
     } catch (e) {
       console.error("Failed to create thread", e);
@@ -196,14 +199,15 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
 
     setIsUserThreadsLoading(true);
     try {
-      const client = createClient();
-
-      const userThreads = await client.threads.search({
-        metadata: {
-          supabase_user_id: user.id,
-        },
-        limit: 100,
-      });
+      // LangGraph server removed - return empty threads to prevent API errors
+      // const client = createClient();
+      // const userThreads = await client.threads.search({
+      //   metadata: {
+      //     supabase_user_id: user.id,
+      //   },
+      //   limit: 100,
+      // });
+      const userThreads: any[] = [];
 
       if (userThreads.length > 0) {
         const lastInArray = userThreads[0];
@@ -232,27 +236,25 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
       // threads to update UI.
       void createThread();
     }
-    const client = createClient();
-    try {
-      await client.threads.delete(id);
-    } catch (e) {
-      console.error(`Failed to delete thread with ID ${id}`, e);
-    }
   };
 
   const getThread = async (id: string): Promise<Thread | undefined> => {
-    try {
-      const client = createClient();
-      return client.threads.get(id);
-    } catch (e) {
-      console.error("Failed to get thread by ID.", id, e);
-      toast({
-        title: "Failed to get thread",
-        description: "An error occurred while trying to get a thread.",
-        duration: 5000,
-        variant: "destructive",
-      });
-    }
+    // Disabled: No longer using LangGraph API
+    // Just return undefined since threads are managed locally via Archivist
+    return undefined;
+    
+    // try {
+    //   const client = createClient();
+    //   return client.threads.get(id);
+    // } catch (e) {
+    //   console.error("Failed to get thread by ID.", id, e);
+    //   toast({
+    //     title: "Failed to get thread",
+    //     description: "An error occurred while trying to get a thread.",
+    //     duration: 5000,
+    //     variant: "destructive",
+    //   });
+    // }
 
     return undefined;
   };

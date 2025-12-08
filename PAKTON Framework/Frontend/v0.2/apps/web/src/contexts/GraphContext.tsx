@@ -18,7 +18,6 @@ import {
 } from "@opencanvas/shared/types";
 import { AIMessage, BaseMessage } from "@langchain/core/messages";
 import { useRuns } from "@/hooks/useRuns";
-import { createClient } from "@/hooks/utils";
 import { WEB_SEARCH_RESULTS_QUERY_PARAM } from "@/constants";
 import {
   DEFAULT_INPUTS,
@@ -62,6 +61,8 @@ import { useThreadContext } from "./ThreadProvider";
 import { useAssistantContext } from "./AssistantContext";
 import { StreamWorkerService } from "@/workers/graph-stream/streamWorker";
 import { useQueryState } from "nuqs";
+import { createSupabaseClient } from "@/lib/supabase/client";
+import { useConversationContext } from "./ConversationContext";
 
 interface GraphData {
   runId: string | undefined;
@@ -117,10 +118,16 @@ export function GraphProvider({ children }: { children: ReactNode }) {
   const userData = useUserContext();
   const assistantsData = useAssistantContext();
   const threadData = useThreadContext();
+  const conversationData = useConversationContext();
   const { toast } = useToast();
   const { shareRun } = useRuns();
   const [chatStarted, setChatStarted] = useState(false);
   const [messages, setMessages] = useState<BaseMessage[]>([]);
+  
+  // Keep ref updated with latest messages
+  useEffect(() => {
+    currentMessagesRef.current = messages;
+  }, [messages]);
   const [artifact, setArtifact] = useState<ArtifactV3>();
   const [selectedBlocks, setSelectedBlocks] = useState<TextHighlight>();
   const [isStreaming, setIsStreaming] = useState(false);
@@ -141,7 +148,15 @@ export function GraphProvider({ children }: { children: ReactNode }) {
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [error, setError] = useState(false);
   const [artifactUpdateFailed, setArtifactUpdateFailed] = useState(false);
+  const [intermediateStreamingComplete, setIntermediateStreamingComplete] = useState(false);
+  const [reportStreamingComplete, setReportStreamingComplete] = useState(false);
+  const [reportStreamingInProgress, setReportStreamingInProgress] = useState(false);
+  const reportStreamingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const reportStreamingCompleteRef = useRef<boolean>(false); // Ref for checking in closures
   const [searchEnabled, setSearchEnabled] = useState(false);
+  const pendingCharsRef = useRef<string>("");
+  const streamingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const currentMessagesRef = useRef<BaseMessage[]>([]);
 
   const [_, setWebSearchResultsId] = useQueryState(
     WEB_SEARCH_RESULTS_QUERY_PARAM
@@ -174,13 +189,16 @@ export function GraphProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     return () => {
       debouncedAPIUpdate.cancel();
+      if (streamingTimerRef.current) {
+        clearInterval(streamingTimerRef.current);
+      }
     };
   }, [debouncedAPIUpdate]);
 
   useEffect(() => {
     if (!threadData.threadId) return;
     if (!messages.length || !artifact) return;
-    if (updateRenderedArtifactRequired || threadSwitched || isStreaming) return;
+    if (updateRenderedArtifactRequired || threadSwitched || isStreaming || reportStreamingInProgress) return;
     const currentIndex = artifact.currentIndex;
     const currentContent = artifact.contents.find(
       (c) => c.index === currentIndex
@@ -226,15 +244,15 @@ export function GraphProvider({ children }: { children: ReactNode }) {
     }
     searchOrCreateEffectRan.current = true;
 
-    threadData.getThread(threadData.threadId).then((thread) => {
-      if (thread) {
-        switchSelectedThread(thread);
-        return;
-      }
-
-      // Failed to fetch thread. Remove from query params
-      threadData.setThreadId(null);
-    });
+    // Disabled: No longer fetching threads from LangGraph API
+    // Threads are managed locally via Archivist - thread will be created when user sends first message
+    // threadData.getThread(threadData.threadId).then((thread) => {
+    //   if (thread) {
+    //     switchSelectedThread(thread);
+    //     return;
+    //   }
+    //   threadData.setThreadId(null);
+    // });
   }, [threadData.threadId, userData.user]);
 
   const updateArtifact = async (
@@ -245,12 +263,13 @@ export function GraphProvider({ children }: { children: ReactNode }) {
     if (isStreaming) return;
 
     try {
-      const client = createClient();
-      await client.threads.updateState(threadId, {
-        values: {
-          artifact: artifactToUpdate,
-        },
-      });
+      // LangGraph server removed - artifacts are now local only
+      // const client = createClient();
+      // await client.threads.updateState(threadId, {
+      //   values: {
+      //     artifact: artifactToUpdate,
+      //   },
+      // });
       setIsArtifactSaved(true);
       lastSavedArtifact.current = artifactToUpdate;
     } catch (_) {
@@ -267,6 +286,22 @@ export function GraphProvider({ children }: { children: ReactNode }) {
   const streamMessageV2 = async (params: GraphInput) => {
     setFirstTokenReceived(false);
     setError(false);
+    pendingCharsRef.current = "";
+    setIntermediateStreamingComplete(false);
+    setReportStreamingComplete(false);
+    reportStreamingCompleteRef.current = false; // Reset ref too
+    setReportStreamingInProgress(false);
+    
+    if (streamingTimerRef.current) {
+      clearInterval(streamingTimerRef.current);
+      streamingTimerRef.current = null;
+    }
+    
+    if (reportStreamingTimerRef.current) {
+      clearInterval(reportStreamingTimerRef.current);
+      reportStreamingTimerRef.current = null;
+    }
+    
     if (!assistantsData.selectedAssistant) {
       toast({
         title: "Error",
@@ -349,6 +384,10 @@ export function GraphProvider({ children }: { children: ReactNode }) {
     let thinkingMessageId = "";
 
     try {
+      // Get authentication token
+      const supabase = createSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const workerService = new StreamWorkerService();
       const stream = workerService.streamData({
         threadId: currentThreadId,
@@ -356,6 +395,7 @@ export function GraphProvider({ children }: { children: ReactNode }) {
         input,
         modelName: threadData.modelName,
         modelConfigs: threadData.modelConfigs,
+        accessToken: session?.access_token,
       });
 
       // Variables to keep track of content specific to this stream
@@ -409,6 +449,513 @@ export function GraphProvider({ children }: { children: ReactNode }) {
           setError(true);
           setIsStreaming(false);
           break;
+        }
+
+        // Handle Archivist SSE stream with steps
+        if (chunk.event === "archivist_stream_steps") {
+          const { type, thread_id, step, error: errorMsg } = chunk.data;
+          
+          if (type === "step" && step) {
+            // Handle intermediate steps from Archivist
+            const { content, message_type, tool_calls, artifact } = step;
+            
+            // Log the complete step data
+            console.log('📨 STEP RECEIVED:', {
+              type: message_type,
+              content: content,
+              tool_calls: tool_calls,
+              artifact: artifact,
+              thread_id: thread_id,
+              timestamp: new Date().toISOString()
+            });
+            
+            // Skip "human" type steps - don't display these
+            if (message_type?.toLowerCase() === 'human') {
+              console.log('⏭️ Skipping Human step');
+              continue;
+            }
+            
+            // Update thread ID from Archivist response
+            if (thread_id) {
+              if (!threadData.threadId) {
+                threadData.setThreadId(thread_id);
+              }
+              currentThreadId = thread_id;
+            }
+            
+            // Handle "ai" type steps (final response content)
+            if (message_type?.toLowerCase() === 'ai') {
+              console.log('🤖 AI step:', content?.substring(0, 50) + '...');
+              
+              // Create message on first AI step if needed
+              if (!followupMessageId) {
+                followupMessageId = `ai-${Date.now()}`;
+                setMessages((prev) => [
+                  ...prev,
+                  new AIMessage({
+                    id: followupMessageId,
+                    content: "",
+                    additional_kwargs: {
+                      aiSteps: [],
+                      interrogationCalls: [],
+                      intermediateContent: "",
+                    },
+                  }),
+                ]);
+                setFirstTokenReceived(true);
+              }
+              
+              // Check if this AI step has interrogation tool calls
+              const interrogationCall = tool_calls?.find((tc: any) => tc.name === 'interrogation');
+              
+              // If this is an AI step with interrogation, stream the content as intermediate
+              if (interrogationCall) {
+                // Start character-by-character streaming of intermediate content
+                let charIndex = 0;
+                pendingCharsRef.current = content || '';
+                
+                // Update message with interrogation call
+                setMessages((prev) =>
+                  prev.map((msg) => {
+                    if (msg.id === followupMessageId) {
+                      const currentAiSteps: any[] = Array.isArray(msg.additional_kwargs?.aiSteps) ? msg.additional_kwargs.aiSteps : [];
+                      const currentInterrogationCalls: any[] = Array.isArray(msg.additional_kwargs?.interrogationCalls) ? msg.additional_kwargs.interrogationCalls : [];
+                      
+                      return new AIMessage({
+                        id: followupMessageId,
+                        content: msg.content,
+                        additional_kwargs: {
+                          ...msg.additional_kwargs,
+                          aiSteps: [
+                            ...currentAiSteps,
+                            {
+                              content: content || '',
+                              timestamp: Date.now(),
+                              toolCalls: tool_calls || [],
+                              hasInterrogation: true,
+                            }
+                          ],
+                          interrogationCalls: [
+                            ...currentInterrogationCalls,
+                            {
+                              arguments: interrogationCall.arguments,
+                              timestamp: Date.now(),
+                              isActive: true,
+                              showIndicator: false, // Don't show until streaming completes
+                            }
+                          ],
+                          intermediateContent: msg.additional_kwargs?.intermediateContent || '',
+                        },
+                      });
+                    }
+                    return msg;
+                  })
+                );
+                
+                // Stream intermediate content character by character
+                streamingTimerRef.current = setInterval(() => {
+                  if (charIndex < pendingCharsRef.current.length) {
+                    const char = pendingCharsRef.current[charIndex];
+                    charIndex++;
+                    
+                    setMessages((prev) =>
+                      prev.map((msg) =>
+                        msg.id === followupMessageId
+                          ? new AIMessage({
+                              id: followupMessageId,
+                              content: msg.content,
+                              additional_kwargs: {
+                                ...msg.additional_kwargs,
+                                intermediateContent: msg.additional_kwargs?.intermediateContent + char,
+                              },
+                            })
+                          : msg
+                      )
+                    );
+                  } else {
+                    // All pending characters rendered
+                    if (streamingTimerRef.current) {
+                      clearInterval(streamingTimerRef.current);
+                      streamingTimerRef.current = null;
+                    }
+                    pendingCharsRef.current = "";
+                    setIntermediateStreamingComplete(true);
+                    
+                    // Now show the interrogation indicator
+                    setMessages((prev) =>
+                      prev.map((msg) => {
+                        if (msg.id === followupMessageId) {
+                          const currentInterrogationCalls: any[] = Array.isArray(msg.additional_kwargs?.interrogationCalls) ? msg.additional_kwargs.interrogationCalls : [];
+                          return new AIMessage({
+                            id: followupMessageId,
+                            content: msg.content,
+                            additional_kwargs: {
+                              ...msg.additional_kwargs,
+                              interrogationCalls: currentInterrogationCalls.map((call: any) => ({
+                                ...call,
+                                showIndicator: true,
+                              })),
+                            },
+                          });
+                        }
+                        return msg;
+                      })
+                    );
+                  }
+                }, 5);
+              } else {
+                // Regular AI step without interrogation - store for final response
+                setMessages((prev) =>
+                  prev.map((msg) => {
+                    if (msg.id === followupMessageId) {
+                      const currentAiSteps: any[] = Array.isArray(msg.additional_kwargs?.aiSteps) ? msg.additional_kwargs.aiSteps : [];
+                      
+                      return new AIMessage({
+                        id: followupMessageId,
+                        content: msg.content,
+                        additional_kwargs: {
+                          ...msg.additional_kwargs,
+                          aiSteps: [
+                            ...currentAiSteps,
+                            {
+                              content: content || '',
+                              timestamp: Date.now(),
+                              toolCalls: tool_calls || [],
+                              hasInterrogation: false,
+                            }
+                          ],
+                        },
+                      });
+                    }
+                    return msg;
+                  })
+                );
+              }
+            } else if (message_type?.toLowerCase() === 'tool') {
+              // Handle "tool" type steps - check for report artifact
+              console.log('🔧 Tool step - tool result');
+              
+              // Create message if needed
+              if (!followupMessageId) {
+                followupMessageId = `ai-${Date.now()}`;
+                setMessages((prev) => [
+                  ...prev,
+                  new AIMessage({
+                    id: followupMessageId,
+                    content: "",
+                    additional_kwargs: {
+                      aiSteps: [],
+                      interrogationCalls: [],
+                    },
+                  }),
+                ]);
+                setFirstTokenReceived(true);
+              }
+              
+              // Check if artifact contains a report
+              if (artifact && typeof artifact === 'object') {
+                const reportContent = artifact.report || artifact.content;
+                if (reportContent) {
+                  console.log('📄 Report artifact found, streaming to canvas');
+                  console.log(`📄 Report length: ${reportContent.length} characters`);
+                  
+                  // Mark report streaming as in progress
+                  setReportStreamingInProgress(true);
+                  
+                  // Initialize artifact with empty content
+                  setFirstTokenReceived(true);
+                  setArtifact({
+                    currentIndex: 1,
+                    contents: [
+                      {
+                        index: 1,
+                        type: "text",
+                        title: artifact.title || "Interrogation Report",
+                        fullMarkdown: "",
+                      }
+                    ]
+                  });
+                  
+                  // Stream the report content in chunks for better performance and reliability
+                  // Using optimized chunk size and interval to prevent batching interruptions
+                  const CHUNK_SIZE = 50; // Characters per chunk - smaller chunks for character-like streaming
+                  const CHUNK_INTERVAL = 30; // ms between chunks - slower for more visible character streaming
+                  let reportCharIndex = 0;
+                  const reportTitle = artifact.title || "Interrogation Report";
+                  
+                  reportStreamingTimerRef.current = setInterval(() => {
+                    if (reportCharIndex < reportContent.length) {
+                      // Stream in chunks rather than single characters
+                      const nextIndex = Math.min(reportCharIndex + CHUNK_SIZE, reportContent.length);
+                      const streamedContent = reportContent.slice(0, nextIndex);
+                      reportCharIndex = nextIndex;
+                      
+                      setArtifact({
+                        currentIndex: 1,
+                        contents: [
+                          {
+                            index: 1,
+                            type: "text",
+                            title: reportTitle,
+                            fullMarkdown: streamedContent,
+                          }
+                        ]
+                      });
+                    } else {
+                      console.log('📄 Report streaming completed');
+                      if (reportStreamingTimerRef.current) {
+                        clearInterval(reportStreamingTimerRef.current);
+                        reportStreamingTimerRef.current = null;
+                      }
+                      setUpdateRenderedArtifactRequired(true);
+                      setReportStreamingComplete(true);
+                      reportStreamingCompleteRef.current = true; // Update ref for closure access
+                      setReportStreamingInProgress(false);
+                      
+                      // Mark interrogation as complete AFTER report streaming finishes
+                      setMessages((prev) =>
+                        prev.map((msg) => {
+                          if (msg.id === followupMessageId) {
+                            const currentInterrogationCalls: any[] = Array.isArray(msg.additional_kwargs?.interrogationCalls) ? msg.additional_kwargs.interrogationCalls : [];
+                            return new AIMessage({
+                              id: followupMessageId,
+                              content: msg.content,
+                              additional_kwargs: {
+                                ...msg.additional_kwargs,
+                                interrogationCalls: currentInterrogationCalls.map((call: any) => ({
+                                  ...call,
+                                  isActive: false,
+                                })),
+                              },
+                            });
+                          }
+                          return msg;
+                        })
+                      );
+                    }
+                  }, CHUNK_INTERVAL); // Interval between chunks
+                } else {
+                  // No report content, mark interrogation as complete immediately
+                  setMessages((prev) =>
+                    prev.map((msg) => {
+                      if (msg.id === followupMessageId) {
+                        const currentInterrogationCalls: any[] = Array.isArray(msg.additional_kwargs?.interrogationCalls) ? msg.additional_kwargs.interrogationCalls : [];
+                        return new AIMessage({
+                          id: followupMessageId,
+                          content: msg.content,
+                          additional_kwargs: {
+                            ...msg.additional_kwargs,
+                            interrogationCalls: currentInterrogationCalls.map((call: any) => ({
+                              ...call,
+                              isActive: false,
+                            })),
+                          },
+                        });
+                      }
+                      return msg;
+                    })
+                  );
+                }
+              } else {
+                // No artifact, mark interrogation as complete immediately
+                setMessages((prev) =>
+                  prev.map((msg) => {
+                    if (msg.id === followupMessageId) {
+                      const currentInterrogationCalls: any[] = Array.isArray(msg.additional_kwargs?.interrogationCalls) ? msg.additional_kwargs.interrogationCalls : [];
+                      return new AIMessage({
+                        id: followupMessageId,
+                        content: msg.content,
+                        additional_kwargs: {
+                          ...msg.additional_kwargs,
+                          interrogationCalls: currentInterrogationCalls.map((call: any) => ({
+                            ...call,
+                            isActive: false,
+                          })),
+                        },
+                      });
+                    }
+                    return msg;
+                  })
+                );
+              }
+            }
+          } else if (type === "complete") {
+            console.log('✅ Stream completed');
+            
+            // Refresh conversations when stream completes
+            conversationData.refreshConversations().catch(console.error);
+            
+            // Wait for report streaming to complete before starting final AI message streaming
+            const startFinalStreaming = () => {
+              // Find the last AI message to use as the final response content
+              const currentMessages = currentMessagesRef.current;
+              const aiMessage = currentMessages.find(msg => msg.id === followupMessageId) as AIMessage | undefined;
+              
+              if (aiMessage && aiMessage.additional_kwargs?.aiSteps) {
+                const aiSteps: any[] = Array.isArray(aiMessage.additional_kwargs.aiSteps) ? aiMessage.additional_kwargs.aiSteps : [];
+                
+                // Use the last AI step as the final content if available
+                if (aiSteps.length > 0) {
+                  const lastAiStep = aiSteps[aiSteps.length - 1];
+                  const finalContent = lastAiStep.content;
+                  
+                  // Update the message with empty content initially for streaming
+                  setMessages((prev) =>
+                    prev.map((msg) => {
+                      if (msg.id === followupMessageId) {
+                        return new AIMessage({
+                          id: followupMessageId,
+                          content: "",
+                          additional_kwargs: {
+                            ...msg.additional_kwargs,
+                            streaming: true,
+                            readyForTypewriter: true,
+                          },
+                        });
+                      }
+                      return msg;
+                    })
+                  );
+                  
+                  // Start character-by-character streaming of final content
+                  let charIndex = 0;
+                  pendingCharsRef.current = finalContent;
+                  
+                  streamingTimerRef.current = setInterval(() => {
+                    if (charIndex < pendingCharsRef.current.length) {
+                      const char = pendingCharsRef.current[charIndex];
+                      charIndex++;
+                      
+                      setMessages((prev) =>
+                        prev.map((msg) =>
+                          msg.id === followupMessageId
+                            ? new AIMessage({
+                                id: followupMessageId,
+                                content: msg.content + char,
+                                additional_kwargs: {
+                                  ...msg.additional_kwargs,
+                                  streaming: charIndex < pendingCharsRef.current.length,
+                                },
+                              })
+                            : msg
+                        )
+                      );
+                    } else {
+                      // All pending characters rendered
+                      if (streamingTimerRef.current) {
+                        clearInterval(streamingTimerRef.current);
+                        streamingTimerRef.current = null;
+                      }
+                      pendingCharsRef.current = "";
+                      
+                      // Mark streaming as complete
+                      setMessages((prev) =>
+                      prev.map((msg) =>
+                        msg.id === followupMessageId
+                          ? new AIMessage({
+                              id: followupMessageId,
+                              content: msg.content,
+                              additional_kwargs: {
+                                ...msg.additional_kwargs,
+                                streaming: false,
+                                readyForTypewriter: true,
+                              },
+                            })
+                          : msg
+                      )
+                    );
+                    
+                    // Update cache with latest messages after streaming completes
+                    const threadIdToUpdate = thread_id || currentThreadId;
+                    if (threadIdToUpdate) {
+                      const latestMessages = currentMessagesRef.current;
+                      
+                      // Convert current messages to ConversationMessage format
+                      const conversationMessages = latestMessages.map((msg: any) => {
+                        const msgType = msg.type || (msg.constructor?.name === 'HumanMessage' ? 'human' : 'ai');
+                        
+                        if (msgType === 'human' || msgType === 'user') {
+                          return {
+                            role: 'user' as const,
+                            content: msg.content || '',
+                          };
+                        } else {
+                          return {
+                            role: 'assistant' as const,
+                            content: msg.content || '',
+                            aiSteps: msg.additional_kwargs?.aiSteps || [],
+                            interrogationCalls: msg.additional_kwargs?.interrogationCalls || [],
+                          };
+                        }
+                      });
+                      
+                      // Update the cache with the latest messages
+                      console.log(`[GraphContext] Updating cache for thread ${threadIdToUpdate} with ${conversationMessages.length} messages`);
+                      conversationData.updateConversationMessages(threadIdToUpdate, conversationMessages);
+                    }
+                    
+                    setIsStreaming(false);
+                      }
+                    }, 5);
+                  }
+                } else {
+                  // No AI steps found, just finish streaming
+                  setIsStreaming(false);
+                }
+              };
+            
+            // Check if we need to wait for report streaming to complete
+            if (reportStreamingTimerRef.current !== null) {
+              console.log('⏳ Waiting for report streaming to complete before starting final AI message');
+              // Report is still streaming, wait for it to complete
+              let pollAttempts = 0;
+              const maxPollAttempts = 1200; // 120 seconds max (1200 * 100ms) - generous timeout for large reports
+              const checkReportComplete = setInterval(() => {
+                pollAttempts++;
+                // Use ref instead of state to avoid closure issues
+                if (reportStreamingCompleteRef.current) {
+                  console.log('✅ Report streaming completed, starting final AI message');
+                  clearInterval(checkReportComplete);
+                  startFinalStreaming();
+                } else if (reportStreamingTimerRef.current === null) {
+                  // Timer was cleared, streaming must be complete
+                  console.log('✅ Report streaming timer cleared, starting final AI message');
+                  clearInterval(checkReportComplete);
+                  startFinalStreaming();
+                } else if (pollAttempts >= maxPollAttempts) {
+                  console.warn('⚠️ Report streaming timeout, starting final AI message anyway');
+                  // Clean up the streaming timer if it's still running
+                  if (reportStreamingTimerRef.current) {
+                    clearInterval(reportStreamingTimerRef.current);
+                    reportStreamingTimerRef.current = null;
+                  }
+                  clearInterval(checkReportComplete);
+                  startFinalStreaming();
+                }
+              }, 100);
+            } else {
+              console.log('▶️ No report streaming, starting final AI message immediately');
+              // No report streaming, start final streaming immediately
+              startFinalStreaming();
+            }
+            
+            break;
+          } else if (type === "error") {
+            console.error('❌ Stream error:', errorMsg);
+            const errorMessage = errorMsg || 'An error occurred during streaming';
+            
+            toast({
+              title: "Error generating content",
+              description: errorMessage,
+              variant: "destructive",
+              duration: 5000,
+            });
+            
+            setError(true);
+            setIsStreaming(false);
+            break;
+          }
+          continue;
         }
 
         try {
@@ -1372,6 +1919,28 @@ export function GraphProvider({ children }: { children: ReactNode }) {
       threadData.setModelConfig(DEFAULT_MODEL_NAME, DEFAULT_MODEL_CONFIG);
     }
 
+    // Check if this is a conversation-based thread (from API) or a legacy LangGraph thread
+    const isConversationThread = !thread.values || Object.keys(thread.values).length === 0;
+    
+    if (isConversationThread) {
+      // This is an API-based conversation - clear messages and artifacts
+      // since we don't have historical data, just the thread_id for future messages
+      setMessages([]);
+      setArtifact(undefined);
+      lastSavedArtifact.current = undefined;
+      
+      // Show a toast to inform the user they've switched to a conversation
+      if (thread.metadata?.thread_title) {
+        toast({
+          title: "Conversation Selected",
+          description: `Switched to "${thread.metadata.thread_title}". Continue the conversation below.`,
+          duration: 3000,
+        });
+      }
+      return;
+    }
+
+    // Legacy LangGraph thread handling
     const castValues: {
       artifact: ArtifactV3 | undefined;
       messages: Record<string, any>[] | undefined;
