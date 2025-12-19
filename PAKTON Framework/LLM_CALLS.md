@@ -16,6 +16,7 @@ This note captures where each component constructs LLM clients and which configu
   - Bedrock: `models/bedrock.py#get_bedrock_llm`.
   - Local stub: `models/local.py#get_local_llm` currently returns `None`.
 - **Ollama**: set `models.API: OPENAI`, `models.model_id` to your Ollama model name, `models.endpoint_url: http://localhost:11434/v1`, and provide any `OPENAI_API_KEY` (ignored by Ollama but required by the client).
+- **Env overrides** (all components): set `LLM_BASE_URL` to override the base URL (e.g., Ollama) and `LLM_MODEL_ID` to override the model name without touching config files. These take precedence over `endpoint_url` and configured `model_id`.
 
 ## Interrogator (src/Interrogator)
 - The StateGraph uses LLMs in three places:
