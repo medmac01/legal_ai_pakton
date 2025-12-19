@@ -15,6 +15,9 @@ PAKTON Framework/
     └── v0.2/              # Open Canvas-based interface (Beta)
 ```
 
+See `LLM_CALLS.md` for a concise map of how each component instantiates LLM clients and how to point them to an OpenAI-compatible Ollama endpoint.
+Environment overrides: set `LLM_BASE_URL` to change the OpenAI-compatible base URL (e.g., Ollama) and `LLM_MODEL_ID` to pick the model without editing config files.
+
 ## 📋 Component Descriptions
 
 ### API

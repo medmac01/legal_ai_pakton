@@ -28,7 +28,12 @@ def get_openai_llm(model_id: str, endpoint_url=None, **kwargs):
     if not api_key:
         raise ValueError("OPENAI_API_KEY environment variable is not set.")
     
-    if endpoint_url:
-        kwargs["base_url"] = endpoint_url
+    env_base_url = os.getenv("LLM_BASE_URL")
+    env_model_id = os.getenv("LLM_MODEL_ID")
+
+    final_base_url = env_base_url or endpoint_url
+    if final_base_url:
+        kwargs["base_url"] = final_base_url
     
-    return ChatOpenAI(model_name=model_id, openai_api_key=api_key, **kwargs)
+    model_to_use = env_model_id or model_id
+    return ChatOpenAI(model_name=model_to_use, openai_api_key=api_key, **kwargs)
