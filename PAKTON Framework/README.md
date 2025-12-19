@@ -15,6 +15,8 @@ PAKTON Framework/
     └── v0.2/              # Open Canvas-based interface (Beta)
 ```
 
+See `LLM_CALLS.md` for a concise map of how each component instantiates LLM clients and how to point them to an OpenAI-compatible Ollama endpoint.
+
 ## 📋 Component Descriptions
 
 ### API
